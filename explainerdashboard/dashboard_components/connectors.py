@@ -264,10 +264,8 @@ class PosLabelConnector(ExplainerComponent):
             return []
 
         if hasattr(output_pos_labels, "__iter__"):
-            pos_labels = []
-            for comp in output_pos_labels:
-                pos_labels.extend(get_pos_labels(comp))
-            return list(set(pos_labels))
+            all_pos_labels= (get_pos_labels(comp) for comp in output_pos_labels)
+            return list(set().union(*all_pos_labels))
         else:
             return get_pos_labels(output_pos_labels)
 
@@ -322,10 +320,7 @@ class CutoffConnector(ExplainerComponent):
             )
 
         if hasattr(cutoffs, "__iter__"):
-            cutoff_name_list = []
-            for cutoff in cutoffs:
-                cutoff_name_list.append(get_cutoff_name(cutoff))
-            return cutoff_name_list
+            return [get_cutoff_name(cutoff) for cutoff in cutoffs]
         else:
             return get_cutoff_name(cutoffs)
 
@@ -355,6 +350,8 @@ class IndexConnector(ExplainerComponent):
                         should have a .index_name property.
             output_indexes (list(str, ExplainerComponent)): list of str of
                         ExplainerComponents.
+            explainer (ExplainerComponent, optional): if entered, checks that
+                        the index exists when a new one is issued.
         """
         self.input_index_name = self.index_name(input_index)
         self.output_index_names = self.index_name(output_indexes)
@@ -376,10 +373,7 @@ class IndexConnector(ExplainerComponent):
             )
 
         if hasattr(indexes, "__iter__"):
-            index_name_list = []
-            for index in indexes:
-                index_name_list.append(get_index_name(index))
-            return index_name_list
+            return [get_index_name(index) for index in indexes]
         else:
             return get_index_name(indexes)
 

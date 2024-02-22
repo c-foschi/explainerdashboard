@@ -328,11 +328,13 @@ class ExplainerComponent(ABC):
 
     def register_components(self, *components):
         """register subcomponents so that their callbacks will be registered
-        and dependencies can be tracked
+        and dependencies can be tracked (registered components are simply
+        added to self._components).
 
         Args:
-            scan_self (bool, optional): scan self.__dict__ and add all
-            ExplainerComponent attributes to _components. Defaults to True
+            *components (ExplainerComponent, optional): components to register.
+            By default self.__dict__ is scanned and add all ExplainerComponent
+            attributes are considered.
         """
         if not hasattr(self, "_components"):
             self._components = []
@@ -355,11 +357,11 @@ class ExplainerComponent(ABC):
                         self._components.append(subcomp)
                     else:
                         print(
-                            f"{subcomp.__name__} is not an ExplainerComponent so not adding to self.components"
+                            f"{subcomp.__name__} is not an ExplainerComponent so not adding to self._components"
                         )
             else:
                 print(
-                    f"{comp.__name__} is not an ExplainerComponent so not adding to self.components"
+                    f"{comp.__name__} is not an ExplainerComponent so not adding to self._components"
                 )
 
         for k, v in self.__dict__.items():
