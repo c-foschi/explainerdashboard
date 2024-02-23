@@ -1276,13 +1276,19 @@ def get_contrib_df(
             .reindex(cols)
             .reset_index()
         )
-        rest_df = pd.DataFrame(
-            {
-                "col": ["_REST"], 
-                "contribution": [contrib_df[~contrib_df.col.isin(cols)]["contribution"].sum()],
-                "value" : [""],
-            }
-        )
+        # computing 'other features combined' contribution
+        cut_off_df= contrib_df[~contrib_df.col.isin(cols)]
+        if len(cut_off_df):
+            rest_df = pd.DataFrame(
+                {
+                    "col": ["_REST"],
+                    "contribution": [cut_off_df["contribution"].sum()],
+                    "value" : [""],
+                }
+            )
+        else:
+            rest_df= pd.DataFrame()
+
         contrib_df = pd.concat([base_df, display_df, rest_df], ignore_index=True)
 
     # add cumulative contribution from top to bottom (for making bar chart):

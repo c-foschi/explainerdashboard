@@ -2039,6 +2039,7 @@ class ShapContributionsGraphComponent(ExplainerComponent):
         orientation="vertical",
         higher_is_better=True,
         description=None,
+        style= None,
         **kwargs,
     ):
         """Display Shap contributions to prediction graph component
@@ -2100,6 +2101,7 @@ class ShapContributionsGraphComponent(ExplainerComponent):
         to explain exactly how each individual prediction has been built up
         from all the individual ingredients in the model.
         """
+        self.style= style or {}
 
         self.selector = PosLabelSelector(explainer, name=self.name, pos_label=pos_label)
         self.index_selector = IndexSelector(
@@ -2351,6 +2353,7 @@ class ShapContributionsGraphComponent(ExplainerComponent):
                     orientation=args["orientation"],
                     pos_label=args["pos_label"],
                     higher_is_better=self.higher_is_better,
+                    style=self.style,
                 )
                 html = to_html.fig(fig)
             else:
@@ -2379,6 +2382,7 @@ class ShapContributionsGraphComponent(ExplainerComponent):
                     orientation=args["orientation"],
                     pos_label=args["pos_label"],
                     higher_is_better=self.higher_is_better,
+                    style= self.style,
                 )
                 html = to_html.fig(fig)
             else:
@@ -2413,6 +2417,7 @@ class ShapContributionsGraphComponent(ExplainerComponent):
                     orientation=orientation,
                     pos_label=pos_label,
                     higher_is_better=self.higher_is_better,
+                    style=self.style,
                 )
                 return plot
 
@@ -2441,6 +2446,7 @@ class ShapContributionsGraphComponent(ExplainerComponent):
                         orientation=orientation,
                         pos_label=pos_label,
                         higher_is_better=self.higher_is_better,
+                        style=self.style,
                     )
                     return plot
                 raise PreventUpdate

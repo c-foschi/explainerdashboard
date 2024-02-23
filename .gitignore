@@ -184,3 +184,6 @@ dashboard1_explainer.joblib
 db2_dashboard.yaml
 db2_explainer.dill
 db2_explainer.joblib
+
+# Pycharm
+.idea

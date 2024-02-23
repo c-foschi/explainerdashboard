@@ -20,9 +20,11 @@ __all__ = [
     "plotly_preds_vs_col",
     "plotly_rf_trees",
     "plotly_xgboost_trees",
+    "plotly_importance_matrix",
 ]
 
 import warnings
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
@@ -75,6 +77,18 @@ def plotly_prediction_piechart(predictions_df, showlegend=True, size=250):
     return fig
 
 
+contribution_waterfall_default_style= dict(
+    fill_color_up=   "rgba(50, 200, 50, 1.0)",
+    line_color_up=   "rgba(40, 160, 50, 1.0)",
+    fill_color_avg=  "rgba(230, 230, 30, 1.0)",
+    line_color_avg=  "rgba(190, 190, 30, 1.0)",
+    fill_color_pred= "rgba(55, 128, 191, 0.7)",
+    line_color_pred= "rgba(55, 128, 191, 1.0)",
+    fill_color_down= "rgba(219, 64, 82, 0.7)",
+    line_color_down= "rgba(219, 64, 82, 1.0)",
+)
+
+
 def plotly_contribution_plot(
     contrib_df,
     target="",
@@ -83,8 +97,9 @@ def plotly_contribution_plot(
     include_base_value=True,
     include_prediction=True,
     orientation="vertical",
-    round=2,
     units="",
+    round=2,
+    style= {}
 ):
     """Generate a shap contributions waterfall plot from a contrib_df dataframe
 
@@ -94,7 +109,7 @@ def plotly_contribution_plot(
         model_output ({"raw", "logodds", "probability"}, optional): Kind of
             output of the model. Defaults to "raw".
         higher_is_better (bool, optional): Display increases in shap as green,
-            decreases as red. Defaults to False.
+            decreases as red. Defaults to True.
         include_base_value (bool, optional): Include shap base value in the plot.
             Defaults to True.
         include_prediction (bool, optional): Include the final prediction in
@@ -117,6 +132,8 @@ def plotly_contribution_plot(
             f"model_output should be in ['raw', 'probability', 'logodds'], but you passed orientation={model_output}"
         )
 
+    style = contribution_waterfall_default_style | style
+
     contrib_df = contrib_df.copy()
     try:
         base_value = contrib_df.query("col=='_BASE'")["contribution"].item()
@@ -129,7 +146,7 @@ def plotly_contribution_plot(
         contrib_df = contrib_df[contrib_df.col != "_PREDICTION"]
     contrib_df = contrib_df.replace(
         {
-            "_BASE": "Population<br>average",
+            "_BASE": "Population average",
             "_REST": "Other features combined",
             "_PREDICTION": "Final Prediction",
         }
@@ -144,9 +161,6 @@ def plotly_contribution_plot(
         multiplier * contrib_df["contribution"].astype(float), round
     )
 
-    if not include_base_value:
-        contrib_df = contrib_df[contrib_df.col != "_BASE"]
-
     longest_feature_name = contrib_df["col"].str.len().max()
 
     # prediction is the sum of all contributions:
@@ -157,34 +171,32 @@ def plotly_contribution_plot(
     contribs = contrib_df.contribution.tolist()
 
     if "value" in contrib_df.columns:
-        hover_text = [
-            f"{col}={value}<BR>{'+' if contrib>0 else ''}{contrib} {units}"
-            for col, value, contrib in zip(cols, values, contribs)
-        ]
+        hover_text= []
+        for col, value, contrib in zip(cols, values, contribs):
+            if value == '': # special bars like _BASE, _REST
+                value= col
+            else:
+                value= f'{col}={value}'
+            hover_text.append(value + f"<BR>{'+' if contrib > 0 else ''}{contrib} {units}")
     else:
         hover_text = [
             f"{col}=?<BR>{'+' if contrib>0 else ''}{contrib} {units}"
             for col, contrib in zip(cols, contribs)
         ]
 
-    green_fill, green_line = "rgba(50, 200, 50, 1.0)", "rgba(40, 160, 50, 1.0)"
-    yellow_fill, yellow_line = "rgba(230, 230, 30, 1.0)", "rgba(190, 190, 30, 1.0)"
-    blue_fill, blue_line = "rgba(55, 128, 191, 0.7)", "rgba(55, 128, 191, 1.0)"
-    red_fill, red_line = "rgba(219, 64, 82, 0.7)", "rgba(219, 64, 82, 1.0)"
-
-    fill_color_up = green_fill if higher_is_better else red_fill
-    fill_color_down = red_fill if higher_is_better else green_fill
-    line_color_up = green_line if higher_is_better else red_line
-    line_color_down = red_line if higher_is_better else green_line
+    fill_color_up = style['fill_color_up'] if higher_is_better else style['fill_color_down']
+    fill_color_down = style['fill_color_down'] if higher_is_better else style['fill_color_up']
+    line_color_up = style['line_color_up'] if higher_is_better else style['line_color_down']
+    line_color_down = style['line_color_down'] if higher_is_better else style['line_color_up']
 
     fill_colors = [fill_color_up if y > 0 else fill_color_down for y in contribs]
     line_colors = [line_color_up if y > 0 else line_color_down for y in contribs]
     if include_base_value:
-        fill_colors[0] = yellow_fill
-        line_colors[0] = yellow_line
+        fill_colors[0] = style['fill_color_avg']
+        line_colors[0] = style['line_color_avg']
     if include_prediction:
-        fill_colors[-1] = blue_fill
-        line_colors[-1] = blue_line
+        fill_colors[-1] = style['fill_color_pred']
+        line_colors[-1] = style['line_color_pred']
 
     if orientation == "horizontal":
         cols = cols[::-1]
@@ -195,19 +207,20 @@ def plotly_contribution_plot(
         line_colors = line_colors[::-1]
         hover_text = hover_text[::-1]
 
-    # Base of each bar
+    # the graph is realised as a stacked bar plot with a colored bar (trace1)
+    # stacked on top of a transparent one (trace0) only meant to offset trace1
+    # bars while not being visible
     trace0 = go.Bar(
         x=bases if orientation == "horizontal" else cols,
         y=cols if orientation == "horizontal" else bases,
         hoverinfo="skip",
         name="",
         marker=dict(
-            color="rgba(1,1,1, 0.0)",
+            color="rgba(1,1,1,0)",
         ),
         orientation="h" if orientation == "horizontal" else None,
     )
 
-    # top of each bar (base + contribution)
     trace1 = go.Bar(
         x=contribs if orientation == "horizontal" else cols,
         y=cols if orientation == "horizontal" else contribs,
@@ -215,7 +228,6 @@ def plotly_contribution_plot(
         name="contribution",
         hoverinfo="text",
         marker=dict(
-            # blue if positive contribution, red if negative
             color=fill_colors,
             line=dict(
                 color=line_colors,
@@ -232,7 +244,6 @@ def plotly_contribution_plot(
     else:
         title = f"Contribution to prediction {target} = {prediction} {units}"
 
-    data = [trace0, trace1]
     layout = go.Layout(
         height=600 if orientation == "vertical" else 100 + 35 * len(cols),
         title=title,
@@ -240,8 +251,8 @@ def plotly_contribution_plot(
         plot_bgcolor="#fff",
         showlegend=False,
     )
+    fig = go.Figure(data=[trace0, trace1], layout=layout)
 
-    fig = go.Figure(data=data, layout=layout)
     if (
         model_output == "probability"
         and base_value is not None
@@ -3084,3 +3095,93 @@ def plotly_xgboost_trees(
     fig.update_layout(annotations=annotations)
     fig.update_layout(margin=dict(t=40, b=40, l=40, r=40))
     return fig
+
+
+importance_matrix_default_style= dict(
+    diagonal_color= "rgba(55, 128, 191, 1.0)",
+    interaction_color= "rgba(40, 160, 50, 1.0)",
+    hovertemplate= '{:.2f}',
+    margin= 0.,  # margin between rows and columns. value in proportion to the mean row width
+    min_side= .15,  # minimum row and column width, in proportion to the mean row width
+    frame_margin= .08,  # margin between marginal rows and columns and the outer frame (stacks with margin)
+    gridline_style= dict(color= "rgba(0, 0, 0, 0.3)", width= 1),
+    frameline_style= dict(color= "rgba(0, 0, 0, 1)", width= 1.3),
+)
+
+
+def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str],
+                             grid:bool= False, frame:bool= True, style= {}):
+    """
+    Creates a plotly plot of a square matrix of positive quantities. Requires an
+    array of names for the rows and columns of the matrix.
+    """
+
+    # ARGUMENT CHECKS
+    try:
+        s= importances.shape
+        assert len(s) == 2
+        assert s[0] == s[1]
+        assert np.all(importances >= 0)
+        assert np.all(importances == importances.T)
+    except:
+        raise TypeError('importances must be a square symmetrical matrix of positive values')
+    assert len(names) == s[0], "names must have same lenght as importances matrix side"
+
+    style= importance_matrix_default_style | style
+
+    # The following sets of values are valid for both rows and columns, being the matrix
+    # symmetrical
+    row_max= np.max(np.sqrt(importances), axis= 0)
+    min_side= style['min_side'] * np.mean(row_max)
+    row_max= np.maximum(row_max, min_side)
+    margin= style['margin'] * np.mean(row_max)
+    row_center= np.cumsum(row_max + np.concatenate([[0], row_max[:-1]]) + margin)
+    row_center -= margin/2
+
+    cell_sizes= row_max[:, np.newaxis] @ row_max[np.newaxis, :]
+    fill_proportions= np.sqrt(importances/cell_sizes)
+
+    fig= go.Figure()
+
+    HIDDEN= dict(color= "rgba(0, 0, 0, 0)")  # style config for elements that must not show
+
+    # PLOT DATA AS RECTANGLES
+    for i, x_center in enumerate(row_center):
+        for j, y_center in enumerate(row_center):
+            half_w= fill_proportions[i, j] * row_max[i]
+            half_h= fill_proportions[i, j] * row_max[j]
+            x_shape= x_center + np.array([-half_w, half_w, half_w, -half_w])
+            y_shape= y_center + np.array([-half_h, -half_h, half_h, half_h])
+
+            color= style['diagonal_color'] if i == j else style['interaction_color']
+
+            fig.add_trace(go.Scatter(x= x_shape, y= y_shape, fill= "toself", fillcolor= color,
+                                    line= HIDDEN, hoverinfo='skip'))
+            fig.add_trace(go.Scatter(x= [x_shape], y= [y_shape], marker= dict(color= color),
+                                     name= f'({names[j]}, {names[i]})',
+                                     hovertemplate= style['hovertemplate'].format(importances[i][j]),
+                                     ))
+    
+    # PLOT GRIDLINES
+    out_margin= style['frame_margin'] * np.mean(row_max)
+    row_widths= np.cumsum(margin + 2*row_max)
+    largest_value= row_widths[-1] + out_margin
+    if grid:
+        for v in row_widths[:-1]:
+            fig.add_trace(go.Scatter(x= [-out_margin, largest_value], y= [v, v],
+                                     line= style['gridline_style'], hoverinfo= 'skip',
+                                     marker= HIDDEN))
+            fig.add_trace(go.Scatter(x= [v, v], y= [-out_margin, largest_value],
+                                     line= style['gridline_style'], hoverinfo= 'skip',
+                                     marker= HIDDEN))
+    if frame:
+        fig.add_trace(go.Scatter(x= [-out_margin, largest_value, largest_value, -out_margin, -out_margin],
+                                 y= [-out_margin, -out_margin, largest_value, largest_value, -out_margin],
+                                 line= style['frameline_style'], hoverinfo= 'skip',
+                                 marker= HIDDEN))
+
+    fig.update_xaxes(tickvals= row_center, ticktext= names, showgrid= False, zeroline= False, scaleanchor= "y", scaleratio= 1)
+    fig.update_yaxes(tickvals= row_center, ticktext= names, showgrid= False, zeroline= False, autorange="reversed")
+    fig.update_layout(showlegend= False, margin=dict(t=40, b=40, l=40, r=40))
+    return fig
+

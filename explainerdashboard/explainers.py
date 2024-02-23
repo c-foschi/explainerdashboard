@@ -1933,6 +1933,7 @@ class BaseExplainer(ABC):
         higher_is_better=True,
         round=2,
         pos_label=None,
+        style= {},
     ):
         """plot waterfall plot of shap value contributions to the model prediction for index.
 
@@ -1962,7 +1963,6 @@ class BaseExplainer(ABC):
             plotly.Fig: fig
 
         """
-        assert orientation in ["vertical", "horizontal"]
         contrib_df = self.get_contrib_df(
             index=index,
             X_row=X_row,
@@ -1979,6 +1979,7 @@ class BaseExplainer(ABC):
             higher_is_better=higher_is_better,
             target=self.target,
             units=self.units,
+            style= style,
         )
 
     def get_idx_sample(
