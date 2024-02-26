@@ -3122,7 +3122,7 @@ def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str],
         assert len(s) == 2
         assert s[0] == s[1]
         assert np.all(importances >= 0)
-        assert np.all(importances == importances.T)
+        assert np.allclose(importances, importances.T)
     except:
         raise TypeError('importances must be a square symmetrical matrix of positive values')
     assert len(names) == s[0], "names must have same lenght as importances matrix side"

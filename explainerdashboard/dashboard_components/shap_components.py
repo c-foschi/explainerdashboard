@@ -7,16 +7,18 @@ __all__ = [
     "InteractionSummaryDependenceConnector",
     "ShapContributionsTableComponent",
     "ShapContributionsGraphComponent",
+    "ImportanceMatrixComponent",
 ]
 
-
 import dash
+import numpy as np
 from dash import html, dcc, Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
 from ..dashboard_methods import *
 from .. import to_html
+from ..explainer_plots import plotly_importance_matrix
 
 
 class ShapSummaryComponent(ExplainerComponent):
@@ -1878,28 +1880,29 @@ class InteractionDependenceComponent(ExplainerComponent):
         def update_dependence_graph(
             interact_col, index, topx, sort, remove_outliers, pos_label, col
         ):
-            if col is not None and interact_col is not None:
-                style = (
-                    {}
-                    if interact_col in self.explainer.cat_cols
-                    else dict(display="none")
-                )
-                return (
-                    self.explainer.plot_interaction(
-                        interact_col,
-                        col,
-                        highlight_index=index,
-                        pos_label=pos_label,
-                        topx=topx,
-                        sort=sort,
-                        max_cat_colors=self.max_cat_colors,
-                        plot_sample=self.plot_sample,
-                        remove_outliers=bool(remove_outliers),
-                    ),
-                    style,
-                    style,
-                )
-            raise PreventUpdate
+            if col is None or interact_col is None:
+                raise PreventUpdate
+
+            style = (
+                {}
+                if interact_col in self.explainer.cat_cols
+                else dict(display="none")
+            )
+            return (
+                self.explainer.plot_interaction(
+                    interact_col,
+                    col,
+                    highlight_index=index,
+                    pos_label=pos_label,
+                    topx=topx,
+                    sort=sort,
+                    max_cat_colors=self.max_cat_colors,
+                    plot_sample=self.plot_sample,
+                    remove_outliers=bool(remove_outliers),
+                ),
+                style,
+                style,
+            )
 
         @app.callback(
             [
@@ -2831,3 +2834,209 @@ class ShapContributionsTableComponent(ExplainerComponent):
                     output_div = html.Div([contributions_table, *tooltips])
                     return output_div
                 raise PreventUpdate
+
+
+class ImportanceMatrixComponent(ExplainerComponent):
+    _state_props = dict(
+        depth=("interaction-matrix-depth-", "value"),
+        pos_label=("pos-label-", "value"),
+    )
+
+    def __init__(
+            self,
+            explainer,
+            title="Interactions Importance Matrix",
+            name=None,
+            subtitle="2D visualization of the SHAP importance of each feature and its interactions",
+            hide_title=False,
+            hide_subtitle=False,
+            hide_depth=True,
+            hide_popout=False,
+            hide_selector=False,
+            pos_label=None,
+            depth=None,
+            plot_sample=None,
+            description=None,
+            **kwargs,
+    ):
+        """Show SHAP Interaciton Importance Matrix
+
+        Args:
+            explainer (Explainer): explainer object constructed with either
+                        ClassifierExplainer() or RegressionExplainer()
+            title (str, optional): Title of tab or page. Defaults to
+                        "Interactions Summary".
+            name (str, optional): unique name to add to Component elements.
+                        If None then random uuid is generated to make sure
+                        it's unique. Defaults to None.
+            subtitle (str): subtitle
+            hide_title (bool, optional): hide the component title. Defaults to False.
+            hide_subtitle (bool, optional): Hide subtitle. Defaults to False.
+            hide_depth (bool, optional): Hide depth toggle. Defaults to True.
+            hide_popout (bool, optional): hide popout button
+            hide_selector (bool, optional): hide pos label selector. Defaults to False.
+            pos_label ({int, str}, optional): initial pos label.
+                        Defaults to explainer.pos_label
+            depth (int, optional): Number of interaction features to display.
+                Defaults to None.
+            description (str, optional): Tooltip to display when hover over
+                component title. When None default text is shown.
+        """
+        super().__init__(explainer, title, name)
+
+        self.cols = self.explainer.columns_ranked_by_shap()
+        if self.depth is not None:
+            self.depth = min(self.depth, self.explainer.n_features - 1)
+
+        self.selector = PosLabelSelector(explainer, name=self.name, pos_label=pos_label)
+
+        if self.description is None:
+            self.description = """
+            Shows SHAP mean absolute values for both individual features (on the main
+            diagonal) and for interactions between features. While features have a direct
+            effect on the model output, that can be measured trough SHAP values, the
+            interaction of two or more features can have its own effect on the output,
+            that can be measured trough different SHAP values (nth-order SHAP values). In
+            any case, the mean absolute SHAP value for one or more features, expresses
+            the importance of that feature or that combination of features for the overall
+            model predictions.
+            """
+        self.popout = GraphPopout(
+            "interaction-matrix-" + self.name + "popout",
+            "interaction-matrix-graph-" + self.name,
+            self.title,
+            self.description,
+        )
+        self.register_dependencies("shap_interaction_values")
+
+    def layout(self):
+        return dbc.Card(
+            [
+                make_hideable(
+                    dbc.CardHeader(
+                        [
+                            html.Div(
+                                [
+                                    html.H3(
+                                        self.title,
+                                        id="interaction-matrix-title-" + self.name,
+                                    ),
+                                    make_hideable(
+                                        html.H6(
+                                            self.subtitle, className="card-subtitle"
+                                        ),
+                                        hide=self.hide_subtitle,
+                                    ),
+                                    dbc.Tooltip(
+                                        self.description,
+                                        target="interaction-matrix-title-" + self.name,
+                                    ),
+                                ]
+                            ),
+                        ]
+                    ),
+                    hide=self.hide_title,
+                ),
+                dbc.CardBody(
+                    [
+                        dbc.Row(
+                            [
+                                make_hideable(
+                                    dbc.Col(
+                                        [
+                                            dbc.Label(
+                                                "Depth:",
+                                                id="interaction-matrix-depth-label-"
+                                                   + self.name,
+                                            ),
+                                            dbc.Tooltip(
+                                                "Number of interaction features to display",
+                                                target="interaction-matrix-depth-label-"
+                                                       + self.name,
+                                            ),
+                                            dbc.Select(
+                                                id="interaction-matrix-depth-"
+                                                   + self.name,
+                                                options=[
+                                                    {
+                                                        "label": str(i + 1),
+                                                        "value": i + 1,
+                                                    }
+                                                    for i in range(
+                                                        self.explainer.n_features - 1
+                                                    )
+                                                ],
+                                                value=self.depth,
+                                            ),
+                                        ],
+                                        md=2,
+                                    ),
+                                    self.hide_depth,
+                                ),
+                                make_hideable(
+                                    dbc.Col([self.selector.layout()], width=2),
+                                    hide=self.hide_selector,
+                                ),
+                            ]
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        dcc.Loading(
+                                            id="loading-interaction-matrix-graph-"
+                                               + self.name,
+                                            children=[
+                                                dcc.Graph(
+                                                    id="interaction-matrix-graph-"
+                                                       + self.name,
+                                                    config=dict(
+                                                        modeBarButtons=[["toImage"]],
+                                                        displaylogo=False,
+                                                    ),
+                                                )
+                                            ],
+                                        )
+                                    ]
+                                )
+                            ]
+                        ),
+                        dbc.Row(
+                            [
+                                make_hideable(
+                                    dbc.Col(
+                                        [self.popout.layout()], md=2, align="start"
+                                    ),
+                                    hide=self.hide_popout,
+                                ),
+                            ],
+                            justify="end",
+                        ),
+                    ]
+                ),
+            ],
+            class_name="h-100",
+        )
+
+    # TODO html()
+
+    def component_callbacks(self, app):
+        @app.callback(
+            Output("interaction-matrix-graph-" + self.name, "figure"),
+            [
+                Input("interaction-matrix-depth-" + self.name, "value"),
+                Input("pos-label-" + self.name, "value"),
+            ],
+        )
+        def update_interaction_matrix_graph(depth, pos_label):
+            columns= self.explainer.columns_ranked_by_shap()
+            n_col= len(columns)
+            if depth is not None:
+                n_col= min(n_col, depth)
+            M= np.empty(shape= (n_col, n_col))
+            for i in range(n_col):
+                df= self.explainer.get_interactions_df(columns[i])
+                df.index= df[df.columns[0]]
+                M[i]= df['MEAN_ABS_SHAP'].loc[columns].values
+            return plotly_importance_matrix(M, columns)
+
