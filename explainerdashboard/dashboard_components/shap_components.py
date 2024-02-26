@@ -413,8 +413,10 @@ class ShapDependenceComponent(ExplainerComponent):
             pos_label ({int, str}, optional): initial pos label.
                         Defaults to explainer.pos_label
             col (str, optional): Feature to display. Defaults to None.
-            color_col (str, optional): Color plot by values of this Feature.
-                        Defaults to None.
+            color_col (str, optional): Color plot by values of this Feature. By
+                default one feature is chosen with stronger SHAP interactions to col.
+                To not have feature-dependent colors, use "no_color_col" for this
+                argument.
             index (int, optional): Highlight a particular index. Defaults to None.
             remove_outliers (bool, optional): remove outliers in feature and
                 color feature from the plot.
@@ -770,33 +772,9 @@ class ShapDependenceComponent(ExplainerComponent):
 
     def component_callbacks(self, app):
         @app.callback(
-            [
-                Output("shap-dependence-color-col-" + self.name, "options"),
-                Output("shap-dependence-color-col-" + self.name, "value"),
-                Output("shap-dependence-categories-div1-" + self.name, "style"),
-                Output("shap-dependence-categories-div2-" + self.name, "style"),
-            ],
-            [Input("shap-dependence-col-" + self.name, "value")],
-            [State("pos-label-" + self.name, "value")],
-        )
-        def set_color_col_dropdown(col, pos_label):
-            sorted_interact_cols = self.explainer.top_shap_interactions(
-                col, pos_label=pos_label
-            )
-            options = [{"label": col, "value": col} for col in sorted_interact_cols] + [
-                dict(label="None", value="no_color_col")
-            ]
-            if col in self.explainer.cat_cols:
-                value = None
-                style = dict()
-            else:
-                value = sorted_interact_cols[1]
-                style = dict(display="none")
-            return (options, value, style, style)
-
-        @app.callback(
             Output("shap-dependence-graph-" + self.name, "figure"),
             [
+                Input("shap-dependence-col-" + self.name, "value"),
                 Input("shap-dependence-color-col-" + self.name, "value"),
                 Input("shap-dependence-index-" + self.name, "value"),
                 Input("shap-dependence-n-categories-" + self.name, "value"),
@@ -804,14 +782,13 @@ class ShapDependenceComponent(ExplainerComponent):
                 Input("shap-dependence-outliers-" + self.name, "value"),
                 Input("pos-label-" + self.name, "value"),
             ],
-            [State("shap-dependence-col-" + self.name, "value")],
         )
         def update_dependence_graph(
-            color_col, index, topx, sort, remove_outliers, pos_label, col
+            col, color_col, index, topx, sort, remove_outliers, pos_label
         ):
             if col is not None:
                 if color_col == "no_color_col":
-                    color_col, index = None, None
+                    color_col= None
                 return self.explainer.plot_dependence(
                     col,
                     color_col,
