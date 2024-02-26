@@ -3104,13 +3104,12 @@ importance_matrix_default_style= dict(
     margin= 0.,  # margin between rows and columns. value in proportion to the mean row width
     min_side= .15,  # minimum row and column width, in proportion to the mean row width
     frame_margin= .08,  # margin between marginal rows and columns and the outer frame (stacks with margin)
-    gridline_style= dict(color= "rgba(0, 0, 0, 0.3)", width= 1),
+    gridline_style= dict(color= "rgba(0, 0, 0, 0)", width= 1),
     frameline_style= dict(color= "rgba(0, 0, 0, 1)", width= 1.3),
 )
 
 
-def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str],
-                             grid:bool= False, frame:bool= True, style= {}):
+def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str], style= {}):
     """
     Creates a plotly plot of a square matrix of positive quantities. Requires an
     array of names for the rows and columns of the matrix.
@@ -3166,19 +3165,17 @@ def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str],
     out_margin= style['frame_margin'] * np.mean(row_max)
     row_widths= np.cumsum(margin + 2*row_max)
     largest_value= row_widths[-1] + out_margin
-    if grid:
-        for v in row_widths[:-1]:
-            fig.add_trace(go.Scatter(x= [-out_margin, largest_value], y= [v, v],
-                                     line= style['gridline_style'], hoverinfo= 'skip',
-                                     marker= HIDDEN))
-            fig.add_trace(go.Scatter(x= [v, v], y= [-out_margin, largest_value],
-                                     line= style['gridline_style'], hoverinfo= 'skip',
-                                     marker= HIDDEN))
-    if frame:
-        fig.add_trace(go.Scatter(x= [-out_margin, largest_value, largest_value, -out_margin, -out_margin],
-                                 y= [-out_margin, -out_margin, largest_value, largest_value, -out_margin],
-                                 line= style['frameline_style'], hoverinfo= 'skip',
+    for v in row_widths[:-1]:
+        fig.add_trace(go.Scatter(x= [-out_margin, largest_value], y= [v, v],
+                                 line= style['gridline_style'], hoverinfo= 'skip',
                                  marker= HIDDEN))
+        fig.add_trace(go.Scatter(x= [v, v], y= [-out_margin, largest_value],
+                                 line= style['gridline_style'], hoverinfo= 'skip',
+                                 marker= HIDDEN))
+    fig.add_trace(go.Scatter(x= [-out_margin, largest_value, largest_value, -out_margin, -out_margin],
+                             y= [-out_margin, -out_margin, largest_value, largest_value, -out_margin],
+                             line= style['frameline_style'], hoverinfo= 'skip',
+                             marker= HIDDEN))
 
     fig.update_xaxes(tickvals= row_center, ticktext= names, showgrid= False, zeroline= False, scaleanchor= "y", scaleratio= 1)
     fig.update_yaxes(tickvals= row_center, ticktext= names, showgrid= False, zeroline= False, autorange="reversed")

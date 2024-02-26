@@ -2843,21 +2843,22 @@ class ImportanceMatrixComponent(ExplainerComponent):
     )
 
     def __init__(
-            self,
-            explainer,
-            title="Interactions Importance Matrix",
-            name=None,
-            subtitle="2D visualization of the SHAP importance of each feature and its interactions",
-            hide_title=False,
-            hide_subtitle=False,
-            hide_depth=True,
-            hide_popout=False,
-            hide_selector=False,
-            pos_label=None,
-            depth=None,
-            plot_sample=None,
-            description=None,
-            **kwargs,
+        self,
+        explainer,
+        title="Interactions Importance Matrix",
+        name=None,
+        subtitle="2D visualization of the SHAP importance of each feature and its interactions",
+        hide_title=False,
+        hide_subtitle=False,
+        hide_depth=True,
+        hide_popout=False,
+        hide_selector=False,
+        pos_label=None,
+        depth=None,
+        plot_sample=None,
+        description=None,
+        style= None,
+        **kwargs,
     ):
         """Show SHAP Interaciton Importance Matrix
 
@@ -2883,6 +2884,8 @@ class ImportanceMatrixComponent(ExplainerComponent):
                 component title. When None default text is shown.
         """
         super().__init__(explainer, title, name)
+
+        self.style = style or {}
 
         self.cols = self.explainer.columns_ranked_by_shap()
         if self.depth is not None:
@@ -3038,5 +3041,5 @@ class ImportanceMatrixComponent(ExplainerComponent):
                 df= self.explainer.get_interactions_df(columns[i])
                 df.index= df[df.columns[0]]
                 M[i]= df['MEAN_ABS_SHAP'].loc[columns].values
-            return plotly_importance_matrix(M, columns)
+            return plotly_importance_matrix(M, columns, style=self.style)
 
