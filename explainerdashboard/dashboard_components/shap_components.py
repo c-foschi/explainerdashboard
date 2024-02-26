@@ -784,22 +784,35 @@ class ShapDependenceComponent(ExplainerComponent):
             ],
         )
         def update_dependence_graph(
-            col, color_col, index, topx, sort, remove_outliers, pos_label
-        ):
-            if col is not None:
-                if color_col == "no_color_col":
-                    color_col= None
-                return self.explainer.plot_dependence(
-                    col,
-                    color_col,
-                    topx=topx,
-                    sort=sort,
-                    highlight_index=index,
-                    max_cat_colors=self.max_cat_colors,
-                    plot_sample=self.plot_sample,
-                    remove_outliers=bool(remove_outliers),
-                    pos_label=pos_label,
-                )
+            col, color_col, index, topx, sort, remove_outliers, pos_label):
+            if col is None:
+                raise PreventUpdate
+
+            if color_col == "no_color_col":
+                color_col= None
+            return self.explainer.plot_dependence(
+                col,
+                color_col,
+                topx=topx,
+                sort=sort,
+                highlight_index=index,
+                max_cat_colors=self.max_cat_colors,
+                plot_sample=self.plot_sample,
+                remove_outliers=bool(remove_outliers),
+                pos_label=pos_label,
+            )
+
+        @app.callback(
+            Output("shap-dependence-index-" + self.name, "value"),
+            [Input("shap-dependence-graph-" + self.name, "clickData")],
+        )
+        def display_scatter_click_data(clickdata):
+            if clickdata is not None and clickdata["points"][0] is not None:
+                if isinstance(clickdata["points"][0]["y"], float):  # detailed
+                    index = (
+                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                    )
+                    return index
             raise PreventUpdate
 
 
