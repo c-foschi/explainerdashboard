@@ -2897,10 +2897,10 @@ class ImportanceMatrixComponent(ExplainerComponent):
             self.description = """
             Shows SHAP mean absolute values for both individual features (on the main
             diagonal) and for interactions between features. While features have a direct
-            effect on the model output, that can be measured trough SHAP values, the
-            interaction of two or more features can have its own effect on the output,
-            that can be measured trough different SHAP values (nth-order SHAP values). In
-            any case, the mean absolute SHAP value for one or more features, expresses
+            effect on the model output, which can be measured trough ordinary SHAP values,
+            the interaction of two or more features can have its own effect on the output,
+            which can be measured trough different SHAP values (higher-order SHAP values).
+            In any case, the mean absolute SHAP value, for one or more features, expresses
             the importance of that feature or that combination of features for the overall
             model predictions.
             """

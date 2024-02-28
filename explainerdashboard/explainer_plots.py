@@ -3097,14 +3097,17 @@ def plotly_xgboost_trees(
     return fig
 
 
+HIDDEN= dict(color= "rgba(0, 0, 0, 0)")  # style config for elements that must not show
 importance_matrix_default_style= dict(
-    diagonal_color= "rgba(55, 128, 191, 1.0)",
-    interaction_color= "rgba(40, 160, 50, 1.0)",
+    diagonal_color= "rgba(190, 190, 30, 1.0)",
+    diagonal_border= HIDDEN,
+    interaction_color= "rgba(219, 64, 82, 1.0)",
+    interaction_border= HIDDEN,
     hovertemplate= '{:.2f}',
     margin= 0.,  # margin between rows and columns. value in proportion to the mean row width
     min_side= .15,  # minimum row and column width, in proportion to the mean row width
     frame_margin= .08,  # margin between marginal rows and columns and the outer frame (stacks with margin)
-    gridline_style= dict(color= "rgba(0, 0, 0, 0)", width= 1),
+    gridline_style= HIDDEN,
     frameline_style= dict(color= "rgba(0, 0, 0, 1)", width= 1.3),
 )
 
@@ -3142,21 +3145,20 @@ def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str], style=
 
     fig= go.Figure()
 
-    HIDDEN= dict(color= "rgba(0, 0, 0, 0)")  # style config for elements that must not show
-
     # PLOT DATA AS RECTANGLES
     for i, x_center in enumerate(row_center):
         for j, y_center in enumerate(row_center):
             half_w= fill_proportions[i, j] * row_max[i]
             half_h= fill_proportions[i, j] * row_max[j]
-            x_shape= x_center + np.array([-half_w, half_w, half_w, -half_w])
-            y_shape= y_center + np.array([-half_h, -half_h, half_h, half_h])
+            x_shape= x_center + np.array([-half_w, half_w, half_w, -half_w, -half_w])
+            y_shape= y_center + np.array([-half_h, -half_h, half_h, half_h, -half_h])
 
             color= style['diagonal_color'] if i == j else style['interaction_color']
+            line= style['diagonal_border'] if i == j else style['interaction_border']
 
             fig.add_trace(go.Scatter(x= x_shape, y= y_shape, fill= "toself", fillcolor= color,
-                                    line= HIDDEN, hoverinfo='skip'))
-            fig.add_trace(go.Scatter(x= [x_shape], y= [y_shape], marker= dict(color= color),
+                                    line= line, hoverinfo='skip'))
+            fig.add_trace(go.Scatter(x= [x_center], y= [y_center], marker= HIDDEN,
                                      name= f'({names[j]}, {names[i]})',
                                      hovertemplate= style['hovertemplate'].format(importances[i][j]),
                                      ))
@@ -3179,6 +3181,6 @@ def plotly_importance_matrix(importances:np.ndarray, names:Iterable[str], style=
 
     fig.update_xaxes(tickvals= row_center, ticktext= names, showgrid= False, zeroline= False, scaleanchor= "y", scaleratio= 1)
     fig.update_yaxes(tickvals= row_center, ticktext= names, showgrid= False, zeroline= False, autorange="reversed")
-    fig.update_layout(showlegend= False, margin=dict(t=40, b=40, l=40, r=40))
+    fig.update_layout(showlegend= False, margin=dict(t=0, r=30))
     return fig
 
