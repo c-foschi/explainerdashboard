@@ -50,6 +50,7 @@ class ShapSummaryComponent(ExplainerComponent):
         index=None,
         plot_sample=None,
         description=None,
+        click_index_selection= True,
         **kwargs,
     ):
         """Shows shap summary component
@@ -82,6 +83,8 @@ class ShapSummaryComponent(ExplainerComponent):
                 sample of points. Defaults to None (=all points)
             description (str, optional): Tooltip to display when hover over
                 component title. When None default text is shown.
+            click_index_selection (bool, optional): if True, allows to select the
+                index from clicking at the plotted data point. Defaults to True.
         """
         super().__init__(explainer, title, name)
 
@@ -231,7 +234,6 @@ class ShapSummaryComponent(ExplainerComponent):
                                                 ],
                                                 id="shap-summary-index-col-"
                                                 + self.name,
-                                                style=dict(display="none"),
                                             ),
                                         ],
                                         md=3,
@@ -298,18 +300,19 @@ class ShapSummaryComponent(ExplainerComponent):
         return html
 
     def component_callbacks(self, app):
-        @app.callback(
-            Output("shap-summary-index-" + self.name, "value"),
-            [Input("shap-summary-graph-" + self.name, "clickData")],
-        )
-        def display_scatter_click_data(clickdata):
-            if clickdata is not None and clickdata["points"][0] is not None:
-                if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                    index = (
-                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                    )
-                    return index
-            raise PreventUpdate
+        if self.click_index_selection:
+            @app.callback(
+                Output("shap-summary-index-" + self.name, "value"),
+                [Input("shap-summary-graph-" + self.name, "clickData")],
+            )
+            def display_scatter_click_data(clickdata):
+                if clickdata is not None and clickdata["points"][0] is not None:
+                    if isinstance(clickdata["points"][0]["y"], float):  # detailed
+                        index = (
+                            clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                        )
+                        return index
+                raise PreventUpdate
 
         @app.callback(
             [
@@ -389,6 +392,7 @@ class ShapDependenceComponent(ExplainerComponent):
         max_cat_colors=5,
         plot_sample=None,
         description=None,
+        click_index_selection=True,
         **kwargs,
     ):
         """Show shap dependence graph
@@ -433,6 +437,8 @@ class ShapDependenceComponent(ExplainerComponent):
                 sample of points. Defaults to None (=all points)
             description (str, optional): Tooltip to display when hover over
                 component title. When None default text is shown.
+            click_index_selection (bool, optional): if True, allows to select the
+                index from clicking at the plotted data point. Defaults to True.
         """
         super().__init__(explainer, title, name)
 
@@ -805,18 +811,19 @@ class ShapDependenceComponent(ExplainerComponent):
                 pos_label=pos_label,
             )
 
-        @app.callback(
-            Output("shap-dependence-index-" + self.name, "value"),
-            [Input("shap-dependence-graph-" + self.name, "clickData")],
-        )
-        def display_scatter_click_data(clickdata):
-            if clickdata is not None and clickdata["points"][0] is not None:
-                if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                    index = (
-                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                    )
-                    return index
-            raise PreventUpdate
+        if self.click_index_selection:
+            @app.callback(
+                Output("shap-dependence-index-" + self.name, "value"),
+                [Input("shap-dependence-graph-" + self.name, "clickData")],
+            )
+            def display_scatter_click_data(clickdata):
+                if clickdata is not None and clickdata["points"][0] is not None:
+                    if isinstance(clickdata["points"][0]["y"], float):  # detailed
+                        index = (
+                            clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                        )
+                        return index
+                raise PreventUpdate
 
 
 class InteractionSummaryComponent(ExplainerComponent):
@@ -850,6 +857,7 @@ class InteractionSummaryComponent(ExplainerComponent):
         index=None,
         plot_sample=None,
         description=None,
+        click_index_selection=True,
         **kwargs,
     ):
         """Show SHAP Interaciton values summary component
@@ -886,6 +894,8 @@ class InteractionSummaryComponent(ExplainerComponent):
                 sample of points. Defaults to None (=all points)
             description (str, optional): Tooltip to display when hover over
                 component title. When None default text is shown.
+            click_index_selection (bool, optional): if True, allows to select the
+                index from clicking at the plotted data point. Defaults to True.
         """
         super().__init__(explainer, title, name)
 
@@ -1141,18 +1151,19 @@ class InteractionSummaryComponent(ExplainerComponent):
         return html
 
     def component_callbacks(self, app):
-        @app.callback(
-            Output("interaction-summary-index-" + self.name, "value"),
-            [Input("interaction-summary-graph-" + self.name, "clickData")],
-        )
-        def display_scatter_click_data(clickdata):
-            if clickdata is not None and clickdata["points"][0] is not None:
-                if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                    index = (
-                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                    )
-                    return index
-            raise PreventUpdate
+        if self.click_index_selection:
+            @app.callback(
+                Output("interaction-summary-index-" + self.name, "value"),
+                [Input("interaction-summary-graph-" + self.name, "clickData")],
+            )
+            def display_scatter_click_data(clickdata):
+                if clickdata is not None and clickdata["points"][0] is not None:
+                    if isinstance(clickdata["points"][0]["y"], float):  # detailed
+                        index = (
+                            clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                        )
+                        return index
+                raise PreventUpdate
 
         @app.callback(
             [
@@ -1390,7 +1401,7 @@ class InteractionDependenceComponent(ExplainerComponent):
                                 make_hideable(
                                     dbc.Col(
                                         [
-                                            html.Label(
+                                            dbc.Label(
                                                 "Interaction:",
                                                 id="interaction-dependence-interact-col-label-"
                                                 + self.name,
@@ -1406,9 +1417,7 @@ class InteractionDependenceComponent(ExplainerComponent):
                                                 + self.name,
                                                 options=[
                                                     {"label": col, "value": col}
-                                                    for col in self.explainer.top_shap_interactions(
-                                                        col=self.col
-                                                    )
+                                                    for col in self.explainer.columns_ranked_by_shap()
                                                 ],
                                                 value=self.interact_col,
                                             ),
