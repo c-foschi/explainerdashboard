@@ -8,6 +8,7 @@ __all__ = [
     "ShapContributionsTableComponent",
     "ShapContributionsGraphComponent",
     "ImportanceMatrixComponent",
+    "InteractionDependenceMatrixConnector",
 ]
 
 import dash
@@ -2860,7 +2861,7 @@ class ImportanceMatrixComponent(ExplainerComponent):
         style= None,
         **kwargs,
     ):
-        """Show SHAP Interaciton Importance Matrix
+        """Show SHAP Interaction Importance Matrix
 
         Args:
             explainer (Explainer): explainer object constructed with either
@@ -3042,4 +3043,35 @@ class ImportanceMatrixComponent(ExplainerComponent):
                 df.index= df[df.columns[0]]
                 M[i]= df['MEAN_ABS_SHAP'].loc[columns].values
             return plotly_importance_matrix(M, columns, style=self.style)
+
+
+class InteractionDependenceMatrixConnector(ExplainerComponent):
+    def __init__(self, importance_matrix_component, interaction_dependence_component):
+        """Connects a ImportanceMatrixComponent with an InteractionDependenceComponent:
+
+        When clicking on a couple of features in the matrix, then select that feature
+         interaction in Dependence.
+        """
+        self.mat_name = importance_matrix_component.name
+        self.dep_name = interaction_dependence_component.name
+
+    def component_callbacks(self, app):
+        @app.callback(
+            [
+                Output("interaction-dependence-col-" + self.dep_name, "value"),
+                Output("interaction-dependence-interact-col-" + self.dep_name, "value"),
+            ],
+            Input("interaction-matrix-graph-" + self.mat_name, "clickData"),
+            State("interaction-matrix-graph-" + self.mat_name, 'figure')
+        )
+        def update_interact_col_highlight(clickdata, figure):
+            # in matrix importance figure, every 'square' is its own trace, and the name
+            # of the trace goes like "(feature1, feature2)"
+            if clickdata is not None and clickdata["points"][0] is not None:
+                curve_number= clickdata['points'][0]['curveNumber']
+                trace_name= figure['data'][curve_number]['name']
+                return trace_name.strip('()').split(', ')
+            else:
+                #raise PreventUpdate()
+                return dash.no_update, dash.no_update
 
