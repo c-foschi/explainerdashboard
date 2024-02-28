@@ -1,13 +1,13 @@
 __all__ = [
     "ShapSummaryComponent",
     "ShapDependenceComponent",
-    "ShapSummaryDependenceConnector",
     "InteractionSummaryComponent",
     "InteractionDependenceComponent",
-    "InteractionSummaryDependenceConnector",
     "ShapContributionsTableComponent",
     "ShapContributionsGraphComponent",
     "ImportanceMatrixComponent",
+    "ShapSummaryDependenceConnector",
+    "InteractionSummaryDependenceConnector",
     "InteractionDependenceMatrixConnector",
 ]
 
@@ -816,42 +816,6 @@ class ShapDependenceComponent(ExplainerComponent):
                         clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
                     )
                     return index
-            raise PreventUpdate
-
-
-class ShapSummaryDependenceConnector(ExplainerComponent):
-    def __init__(self, shap_summary_component, shap_dependence_component):
-        """Connects a ShapSummaryComponent with a ShapDependence Component:
-
-        - When clicking on feature in ShapSummary, then select that feature in ShapDependence
-
-        Args:
-            shap_summary_component (ShapSummaryComponent): ShapSummaryComponent
-            shap_dependence_component (ShapDependenceComponent): ShapDependenceComponent
-        """
-        self.sum_name = shap_summary_component.name
-        self.dep_name = shap_dependence_component.name
-
-    def component_callbacks(self, app):
-        @app.callback(
-            [
-                Output("shap-dependence-index-" + self.dep_name, "value"),
-                Output("shap-dependence-col-" + self.dep_name, "value"),
-            ],
-            [Input("shap-summary-graph-" + self.sum_name, "clickData")],
-        )
-        def display_scatter_click_data(clickdata):
-            if clickdata is not None and clickdata["points"][0] is not None:
-                if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                    index = (
-                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                    )
-                    col = clickdata["points"][0]["text"].split("=")[1].split("<br>")[1]
-                    return (index, col)
-                elif isinstance(clickdata["points"][0]["y"], str):  # aggregate
-                    # in aggregate clickdata returns col name -> type==str
-                    col = clickdata["points"][0]["y"].split(" ")[1]
-                    return (dash.no_update, col)
             raise PreventUpdate
 
 
@@ -1955,52 +1919,6 @@ class InteractionDependenceComponent(ExplainerComponent):
             raise PreventUpdate
 
 
-class InteractionSummaryDependenceConnector(ExplainerComponent):
-    def __init__(self, interaction_summary_component, interaction_dependence_component):
-        """Connects a InteractionSummaryComponent with an InteractionDependenceComponent:
-
-        - When select feature in summary, then select col in Dependence
-        - When clicking on interaction feature in Summary, then select that interaction
-            feature in Dependence.
-
-        Args:
-            shap_summary_component (ShapSummaryComponent): ShapSummaryComponent
-            shap_dependence_component (ShapDependenceComponent): ShapDependenceComponent
-        """
-        self.sum_name = interaction_summary_component.name
-        self.dep_name = interaction_dependence_component.name
-
-    def component_callbacks(self, app):
-        @app.callback(
-            [
-                Output("interaction-dependence-col-" + self.dep_name, "value"),
-                Output("interaction-dependence-index-" + self.dep_name, "value"),
-                Output("interaction-dependence-interact-col-" + self.dep_name, "value"),
-            ],
-            [
-                Input("interaction-summary-col-" + self.sum_name, "value"),
-                Input("interaction-summary-graph-" + self.sum_name, "clickData"),
-            ],
-        )
-        def update_interact_col_highlight(col, clickdata):
-            if clickdata is not None and clickdata["points"][0] is not None:
-                if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                    index = (
-                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                    )
-                    interact_col = (
-                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[1]
-                    )
-                    return (col, index, interact_col)
-                elif isinstance(clickdata["points"][0]["y"], str):  # aggregate
-                    # in aggregate clickdata returns col name -> type==str
-                    interact_col = clickdata["points"][0]["y"].split(" ")[1]
-                    return (col, dash.no_update, interact_col)
-            else:
-                return (col, dash.no_update, dash.no_update)
-            raise PreventUpdate
-
-
 class ShapContributionsGraphComponent(ExplainerComponent):
     _state_props = dict(
         index=("contributions-graph-index-", "value"),
@@ -3043,6 +2961,91 @@ class ImportanceMatrixComponent(ExplainerComponent):
                 df.index= df[df.columns[0]]
                 M[i]= df['MEAN_ABS_SHAP'].loc[columns].values
             return plotly_importance_matrix(M, columns, style=self.style)
+
+
+## CONNECTORS
+
+
+class ShapSummaryDependenceConnector(ExplainerComponent):
+    def __init__(self, shap_summary_component, shap_dependence_component):
+        """Connects a ShapSummaryComponent with a ShapDependence Component:
+
+        - When clicking on feature in ShapSummary, then select that feature in ShapDependence
+
+        Args:
+            shap_summary_component (ShapSummaryComponent): ShapSummaryComponent
+            shap_dependence_component (ShapDependenceComponent): ShapDependenceComponent
+        """
+        self.sum_name = shap_summary_component.name
+        self.dep_name = shap_dependence_component.name
+
+    def component_callbacks(self, app):
+        @app.callback(
+            [
+                Output("shap-dependence-index-" + self.dep_name, "value"),
+                Output("shap-dependence-col-" + self.dep_name, "value"),
+            ],
+            [Input("shap-summary-graph-" + self.sum_name, "clickData")],
+        )
+        def display_scatter_click_data(clickdata):
+            if clickdata is not None and clickdata["points"][0] is not None:
+                if isinstance(clickdata["points"][0]["y"], float):  # detailed
+                    index = (
+                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                    )
+                    col = clickdata["points"][0]["text"].split("=")[1].split("<br>")[1]
+                    return (index, col)
+                elif isinstance(clickdata["points"][0]["y"], str):  # aggregate
+                    # in aggregate clickdata returns col name -> type==str
+                    col = clickdata["points"][0]["y"].split(" ")[1]
+                    return (dash.no_update, col)
+            raise PreventUpdate
+
+
+class InteractionSummaryDependenceConnector(ExplainerComponent):
+    def __init__(self, interaction_summary_component, interaction_dependence_component):
+        """Connects a InteractionSummaryComponent with an InteractionDependenceComponent:
+
+        - When select feature in summary, then select col in Dependence
+        - When clicking on interaction feature in Summary, then select that interaction
+            feature in Dependence.
+
+        Args:
+            shap_summary_component (ShapSummaryComponent): ShapSummaryComponent
+            shap_dependence_component (ShapDependenceComponent): ShapDependenceComponent
+        """
+        self.sum_name = interaction_summary_component.name
+        self.dep_name = interaction_dependence_component.name
+
+    def component_callbacks(self, app):
+        @app.callback(
+            [
+                Output("interaction-dependence-col-" + self.dep_name, "value"),
+                Output("interaction-dependence-index-" + self.dep_name, "value"),
+                Output("interaction-dependence-interact-col-" + self.dep_name, "value"),
+            ],
+            [
+                Input("interaction-summary-col-" + self.sum_name, "value"),
+                Input("interaction-summary-graph-" + self.sum_name, "clickData"),
+            ],
+        )
+        def update_interact_col_highlight(col, clickdata):
+            if clickdata is not None and clickdata["points"][0] is not None:
+                if isinstance(clickdata["points"][0]["y"], float):  # detailed
+                    index = (
+                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                    )
+                    interact_col = (
+                        clickdata["points"][0]["text"].split("=")[1].split("<br>")[1]
+                    )
+                    return (col, index, interact_col)
+                elif isinstance(clickdata["points"][0]["y"], str):  # aggregate
+                    # in aggregate clickdata returns col name -> type==str
+                    interact_col = clickdata["points"][0]["y"].split(" ")[1]
+                    return (col, dash.no_update, interact_col)
+            else:
+                return (col, dash.no_update, dash.no_update)
+            raise PreventUpdate
 
 
 class InteractionDependenceMatrixConnector(ExplainerComponent):
