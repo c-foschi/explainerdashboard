@@ -856,6 +856,8 @@ def plotly_dependence_plot(
         idxs = pd.Index(idxs).astype(str)
     else:
         idxs = X_col.index.astype(str)
+    if idxs.name is None:
+        idxs.name= 'Index'
 
     if highlight_index is not None:
         if isinstance(highlight_index, int):
@@ -1936,6 +1938,8 @@ def plotly_shap_scatter_plot(
         idxs = pd.Index(idxs).astype(str)
     else:
         idxs = X.index.astype(str)
+    if idxs.name is None:
+        idxs.name= 'Index'
     index_name = idxs.name
 
     length = len(X)

@@ -1319,7 +1319,9 @@ class InteractionDependenceComponent(ExplainerComponent):
             self.description = """
         This plot shows the relation between feature values and shap interaction values.
         This allows you to investigate interactions between features in determining
-        the prediction of the model.
+        the prediction of the model. Note that the SHAP interaction values (on the y axis)
+        for the two plots are the same, but the x values and the color values are switched
+        between the two plots.
         """
         self.popout_bottom = GraphPopout(
             self.name + "popout-bottom",
@@ -3110,8 +3112,8 @@ class InteractionDependenceMatrixConnector(ExplainerComponent):
             if clickdata is not None and clickdata["points"][0] is not None:
                 curve_number= clickdata['points'][0]['curveNumber']
                 trace_name= figure['data'][curve_number]['name']
-                return trace_name.strip('()').split(', ')
-            else:
-                #raise PreventUpdate()
-                return dash.no_update, dash.no_update
+                features= trace_name.strip('()').split(', ')
+                if 'Other features combined' not in features:
+                    return features
+            raise PreventUpdate()
 
