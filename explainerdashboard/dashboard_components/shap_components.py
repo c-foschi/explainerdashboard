@@ -2962,13 +2962,24 @@ class ImportanceMatrixComponent(ExplainerComponent):
         def update_interaction_matrix_graph(depth, pos_label):
             columns= self.explainer.columns_ranked_by_shap()
             n_col= len(columns)
-            if depth is not None:
-                n_col= min(n_col, depth)
-            M= np.empty(shape= (n_col, n_col))
-            for i in range(n_col):
-                df= self.explainer.get_interactions_df(columns[i])
+            M= np.zeros(shape=(n_col, n_col))
+            for i, col in enumerate(columns):
+                df= self.explainer.get_interactions_df(col)
                 df.index= df[df.columns[0]]
-                M[i]= df['MEAN_ABS_SHAP'].loc[columns].values
+                M[i]= df['MEAN_ABS_SHAP'].loc[columns].values[:n_col]
+
+            if depth is not None:
+                depth= int(depth)
+                if depth < n_col:
+                    columns= columns[:depth] + ['Other features combined']
+                    # sum of diagonal elements
+                    M[depth, depth]= np.sum(M[np.arange(depth, n_col),
+                                              np.arange(depth, n_col)])
+                    # sum of interaction values
+                    M[depth, :n_col]= np.sum(M[depth:, :n_col], axis= 0)
+                    M[:n_col, depth]= np.sum(M[:n_col, depth:], axis= 1)
+                    M= M[:(depth + 1), :(depth + 1)]
+
             return plotly_importance_matrix(M, columns, style=self.style)
 
 
