@@ -308,10 +308,8 @@ class ShapSummaryComponent(ExplainerComponent):
             def display_scatter_click_data(clickdata):
                 if clickdata is not None and clickdata["points"][0] is not None:
                     if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                        index = (
-                            clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                        )
-                        return index
+                        # retrieve index from hover-text
+                        return clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
                 raise PreventUpdate
 
         @app.callback(
@@ -818,11 +816,8 @@ class ShapDependenceComponent(ExplainerComponent):
             )
             def display_scatter_click_data(clickdata):
                 if clickdata is not None and clickdata["points"][0] is not None:
-                    if isinstance(clickdata["points"][0]["y"], float):  # detailed
-                        index = (
-                            clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
-                        )
-                        return index
+                    # retrieve index from hover-text
+                    return clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
                 raise PreventUpdate
 
 
@@ -1240,6 +1235,7 @@ class InteractionDependenceComponent(ExplainerComponent):
         plot_sample=None,
         description=None,
         index=None,
+        click_index_selection=True,
         **kwargs,
     ):
         """Interaction Dependence Component.
@@ -1293,6 +1289,9 @@ class InteractionDependenceComponent(ExplainerComponent):
                 sample of points. Defaults to None (=all points)
             description (str, optional): Tooltip to display when hover over
                 component title. When None default text is shown.
+            index (str):    Default index. Defaults to None.
+            click_index_selection (bool, optional): if True, allows to select the
+                index from clicking at the plotted data point. Defaults to True.
         """
         super().__init__(explainer, title, name)
 
@@ -1926,6 +1925,24 @@ class InteractionDependenceComponent(ExplainerComponent):
                     style,
                 )
             raise PreventUpdate
+
+        if self.click_index_selection:
+            @app.callback(
+                [Output("interaction-dependence-index-" + self.name, "value"),
+                 Output("interaction-dependence-top-graph-" + self.name, "clickData"),
+                 Output("interaction-dependence-bottom-graph-" + self.name, "clickData")],
+                [Input("interaction-dependence-top-graph-" + self.name, "clickData"),
+                 Input("interaction-dependence-bottom-graph-" + self.name, "clickData")],
+            )
+            def display_scatter_click_data(cd1, cd2):
+                for clickdata in (cd1, cd2):
+                    if clickdata is not None and clickdata["points"][0] is not None:
+                        # retrieve index from hover-text
+                        index= clickdata["points"][0]["text"].split("=")[1].split("<br>")[0]
+                        # clickdata is persistent, so you need to reset it to None, otherwise
+                        # you wouldn't know from which graph the new clickdata comes.
+                        return index, None, None
+                raise PreventUpdate
 
 
 class ShapContributionsGraphComponent(ExplainerComponent):
